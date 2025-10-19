@@ -31,25 +31,31 @@ def create_database():
         cursor.execute(sql.SQL("CREATE DATABASE {}").format(
             sql.Identifier(DB_CONFIG['dbname'])
         ))
-        print(f"Database '{DB_CONFIG['dbname']}' created successfully")
+        print(f"✓ Database '{DB_CONFIG['dbname']}' created successfully")
     else:
-        print(f"Database '{DB_CONFIG['dbname']}' already exists")
+        print(f"✓ Database '{DB_CONFIG['dbname']}' already exists")
     
     cursor.close()
     conn.close()
 
 def create_tables():
-    """Create the video_mapping table"""
+    """Create the video_mapping table with metadata fields"""
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
     
-    # Create table
+    # Create table with metadata fields
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS video_mapping (
             id SERIAL PRIMARY KEY,
             hash_name VARCHAR(255) UNIQUE NOT NULL,
-            original_filename VARCHAR(500) NOT NULL,
+            original_filename VARCHAR(500) UNIQUE NOT NULL,
             file_extension VARCHAR(10) NOT NULL,
+            duration INTEGER,
+            width INTEGER,
+            height INTEGER,
+            codec VARCHAR(50),
+            bitrate BIGINT,
+            file_size BIGINT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -60,23 +66,43 @@ def create_tables():
         ON video_mapping(hash_name)
     """)
     
+    # Create index on original_filename for duplicate checking
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_original_filename 
+        ON video_mapping(original_filename)
+    """)
+    
     conn.commit()
-    print("Table 'video_mapping' created successfully")
-    print("Index on 'hash_name' created successfully")
+    print("✓ Table 'video_mapping' created successfully")
+    print("✓ Indexes created successfully")
+    print("\nTable schema:")
+    print("  - hash_name: Unique hash identifier")
+    print("  - original_filename: Original file name")
+    print("  - file_extension: File extension (.mp4, .avi, etc)")
+    print("  - duration: Video duration in seconds")
+    print("  - width: Video width in pixels")
+    print("  - height: Video height in pixels")
+    print("  - codec: Video codec (h264, etc)")
+    print("  - bitrate: Video bitrate")
+    print("  - file_size: File size in bytes")
+    print("  - created_at: Timestamp when added")
     
     cursor.close()
     conn.close()
 
 def main():
     try:
-        print("Initializing video library database...")
+        print("Initializing video library database...\n")
         create_database()
         create_tables()
-        print("\nDatabase initialization complete!")
+        print("\n" + "=" * 50)
+        print("Database initialization complete!")
+        print("=" * 50)
         print(f"Database: {DB_CONFIG['dbname']}")
         print(f"Host: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
+        print("\nNext step: Run add_videos.py to add videos to the library")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"✗ Error: {e}")
         print("\nMake sure PostgreSQL is running and credentials are correct.")
 
 if __name__ == "__main__":
